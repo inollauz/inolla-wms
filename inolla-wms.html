@@ -582,20 +582,22 @@ function loadLS(){
     const s=localStorage.getItem('inwms3');
     if(s){
       const p=JSON.parse(s);
+      // Version farq qilsa — eski ma'lumotlarni saqlab, faqat foydalanuvchilarni yangilaymiz
       if(p._v!==APP_VERSION){
-        if(p.users&&p.users.length)DB.users=[...p.users];
+        // Eski ma'lumotlarni saqlash: mahsulotlar, klientlar, nakladnoylar, omborlar
         if(p.warehouses&&p.warehouses.length)DB.warehouses=[...p.warehouses];
         if(p.products)DB.products={...p.products};
         if(p.clients&&p.clients.length)DB.clients=[...p.clients];
         if(p.nakladnoys&&p.nakladnoys.length)DB.nakladnoys=[...p.nakladnoys];
-        DB.settings={...DB.settings,...(p.settings||{})};
-        DB.settings.cols={...DB.settings.cols,...(p.settings?.cols||{})};
+        if(p.settings)DB.settings={...DB.settings,...p.settings,cols:{...DB.settings.cols,...(p.settings.cols||{})}};
+        // MUHIM: foydalanuvchilarni RESET qilish — standart admin/admin123 bilan
+        DB.users=[...DEFAULT_USERS];
         DB.driveConfig={cid:CLIENT_ID,key:API_KEY,fid:FILE_ID};
         return;
       }
       DB={...DB,...p};
       DB.settings={...DB.settings,...(p.settings||{})};
-      DB.settings.cols={...DB.settings.cols,...(p.settings?.cols||{})};
+      DB.settings.cols={...DB.settings.cols,...(p.settings&&p.settings.cols?p.settings.cols:{})};
       DB.driveConfig={cid:CLIENT_ID,key:API_KEY,fid:FILE_ID};
     }
   }catch(e){localStorage.removeItem('inwms3');}
@@ -668,11 +670,18 @@ function updateUserUI(){
 }
 
 function doLogin(){
-  const u=(document.getElementById('li-user')?.value||'').trim();
-  const p=(document.getElementById('li-pass')?.value||'').trim();
+  const u=(document.getElementById('li-user')&&document.getElementById('li-user').value||'').trim();
+  const p=(document.getElementById('li-pass')&&document.getElementById('li-pass').value||'').trim();
   if(!u||!p){toast('Login va parol kiriting!','er');return;}
   const user=DB.users.find(x=>x.username===u&&x.password===p&&x.active!==false);
-  if(!user){toast("Login yoki parol noto'g'ri!",'er');shakeLogin();return;}
+  if(!user){
+    // Agar foydalanuvchilar ro'yxati bo'sh bo'lsa, default admin yaratish
+    if(!DB.users||!DB.users.length){
+      DB.users=[...DEFAULT_USERS];saveLS();
+      toast("Tizim qayta boshlandi, yana urinib ko'ring",'wa');return;
+    }
+    toast("Login yoki parol noto'g'ri!",'er');shakeLogin();return;
+  }
   CUR.user=user;
   // Select warehouse
   const availWh=DB.warehouses.filter(w=>w.active&&(user.role==='admin'||user.warehouseIds?.includes(w.id)));
