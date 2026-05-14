@@ -183,6 +183,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <button class="login-btn" onclick="doLogin()">🔐 Kirish</button>
     <div class="login-hint">Standart: admin / admin123</div>
+    <div style="text-align:center;margin-top:10px"><button onclick="emergencyReset()" style="background:none;border:none;color:#bbb;font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Kirib bo'lmayapti? Tizimni qayta boshlash</button></div>
   </div>
 </div>
 
@@ -526,6 +527,7 @@ const CLIENT_ID='180148178613-f0dssm8cj7gbqaguv2vlhsbn1g3mv41l.apps.googleuserco
 const API_KEY='AIzaSyDyG7JGqBi5uVUlN0hzdqGyUZomhDwXLB8';
 const FILE_ID='18TocVpyorYbFnppAjQJY1Hq8gpt5Nrbm';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const APP_VERSION='3.1';
 const BRANDS=['Ideal','Loretto','Energy','Aux','Sitronic','Gorenje','JVC','Biryusa','Nelson','Rulls','Samsung','Haier','Beko','Indesit','LG','Hitachi','Magna','BM Electronics','AMIR Group'];
 
 // ================================================================
@@ -574,18 +576,29 @@ let CUR={
 // ================================================================
 // LS SAVE/LOAD
 // ================================================================
-function saveLS(){try{localStorage.setItem('inwms3',JSON.stringify(DB));}catch(e){}}
+function saveLS(){try{localStorage.setItem('inwms3',JSON.stringify({...DB,_v:APP_VERSION}));}catch(e){}}
 function loadLS(){
   try{
     const s=localStorage.getItem('inwms3');
     if(s){
       const p=JSON.parse(s);
+      if(p._v!==APP_VERSION){
+        if(p.users&&p.users.length)DB.users=[...p.users];
+        if(p.warehouses&&p.warehouses.length)DB.warehouses=[...p.warehouses];
+        if(p.products)DB.products={...p.products};
+        if(p.clients&&p.clients.length)DB.clients=[...p.clients];
+        if(p.nakladnoys&&p.nakladnoys.length)DB.nakladnoys=[...p.nakladnoys];
+        DB.settings={...DB.settings,...(p.settings||{})};
+        DB.settings.cols={...DB.settings.cols,...(p.settings?.cols||{})};
+        DB.driveConfig={cid:CLIENT_ID,key:API_KEY,fid:FILE_ID};
+        return;
+      }
       DB={...DB,...p};
       DB.settings={...DB.settings,...(p.settings||{})};
       DB.settings.cols={...DB.settings.cols,...(p.settings?.cols||{})};
       DB.driveConfig={cid:CLIENT_ID,key:API_KEY,fid:FILE_ID};
     }
-  }catch(e){}
+  }catch(e){localStorage.removeItem('inwms3');}
 }
 
 // ================================================================
@@ -635,10 +648,23 @@ function showApp(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='flex';
   buildSidebar();
+  updateUserUI();
   tick();setInterval(tick,1000);
   populateDropdowns();
   showPage('dashboard');
   initDriveOnLoad();
+}
+
+function updateUserUI(){
+  const u=CUR.user;if(!u)return;
+  const av=document.getElementById('u-av-init');
+  if(av)av.textContent=(u.name||'U')[0].toUpperCase();
+  const dn=document.getElementById('u-display-name');
+  if(dn)dn.textContent=u.name||u.username;
+  const dr=document.getElementById('u-display-role');
+  if(dr)dr.textContent=u.role==='admin'?'👑 Super Admin':'📦 Omborchi';
+  const hw=document.getElementById('h-all-wh-wrap');
+  if(hw&&u.role==='admin')hw.style.display='flex';
 }
 
 function doLogin(){
@@ -1639,71 +1665,20 @@ document.addEventListener('click',e=>{if(e.target.classList.contains('mo'))e.tar
 // Enter key on login
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('login-screen')?.style.display!=='none')doLogin();});
 
+// Emergency reset (login qila olmagan holat uchun)
+function emergencyReset(){
+  if(!confirm("Barcha ma'lumotlar o'chiriladi va tizim qayta boshlanadi. Davom etasizmi?"))return;
+  if(!confirm("Oxirgi tasdiqlash: haqiqatan ham qayta boshlaysizmi?"))return;
+  localStorage.removeItem('inwms3');
+  sessionStorage.removeItem('inwms_user');
+  sessionStorage.removeItem('inwms_wh');
+  location.reload();
+}
+
 // Start
 init();
 
-// Post-init: update user UI
-(function(){
-  const orig=init;
-  init=function(){
-    orig();
-    const u=CUR.user;
-    if(u){
-      const av=document.getElementById('u-av-init');
-      if(av)av.textContent=(u.name||'U')[0].toUpperCase();
-      const dn=document.getElementById('u-display-name');
-      if(dn)dn.textContent=u.name||u.username;
-      const dr=document.getElementById('u-display-role');
-      if(dr)dr.textContent=u.role==='admin'?'👑 Super Admin':'📦 Omborchi';
-      // Show all-wh checkbox for admin
-      const hw=document.getElementById('h-all-wh-wrap');
-      if(hw&&u.role==='admin')hw.style.display='flex';
-    }
-  };
-})();
-</script>
-  <script>
-function doLogin() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-
-    // Default admin
-    const adminUser = {
-        username: 'admin',
-        password: 'inolla5005',
-        role: 'superadmin'
-    };
-
-    // Local users
-    let users = JSON.parse(localStorage.getItem('wms_users') || '[]');
-
-    // Admin yaratish
-    if (!users.find(u => u.username === adminUser.username)) {
-        users.push(adminUser);
-        localStorage.setItem('wms_users', JSON.stringify(users));
-    }
-
-    // User qidirish
-    const foundUser = users.find(
-        u => u.username === username && u.password === password
-    );
-
-    if (foundUser) {
-
-        localStorage.setItem('currentUser', JSON.stringify(foundUser));
-
-        // Login page yashirish
-        document.getElementById('loginPage').style.display = 'none';
-
-        // Dashboard ko‘rsatish
-        document.getElementById('app').style.display = 'block';
-
-        alert('Muvaffaqiyatli kirildi');
-
-    } else {
-        alert('Login yoki parol noto‘g‘ri');
-    }
-}
+// User UI update integrated into showApp()
 </script>
 </body>
 </html>
