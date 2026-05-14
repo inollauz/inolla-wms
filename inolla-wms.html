@@ -1662,5 +1662,48 @@ init();
   };
 })();
 </script>
+  <script>
+function doLogin() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    // Default admin
+    const adminUser = {
+        username: 'admin',
+        password: 'inolla5005',
+        role: 'superadmin'
+    };
+
+    // Local users
+    let users = JSON.parse(localStorage.getItem('wms_users') || '[]');
+
+    // Admin yaratish
+    if (!users.find(u => u.username === adminUser.username)) {
+        users.push(adminUser);
+        localStorage.setItem('wms_users', JSON.stringify(users));
+    }
+
+    // User qidirish
+    const foundUser = users.find(
+        u => u.username === username && u.password === password
+    );
+
+    if (foundUser) {
+
+        localStorage.setItem('currentUser', JSON.stringify(foundUser));
+
+        // Login page yashirish
+        document.getElementById('loginPage').style.display = 'none';
+
+        // Dashboard ko‘rsatish
+        document.getElementById('app').style.display = 'block';
+
+        alert('Muvaffaqiyatli kirildi');
+
+    } else {
+        alert('Login yoki parol noto‘g‘ri');
+    }
+}
+</script>
 </body>
 </html>
