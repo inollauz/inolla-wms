@@ -892,7 +892,7 @@ function acInput(inp,rid){
   </div>`).join('');
   ac.classList.add('op');
 }
-function acShow(rid){const r=rows.find(x=>x.id===rid);if(r?.._q)acInput({value:r._q},rid);}
+function acShow(rid){const r=rows.find(x=>x.id===rid);if(r?._q)acInput({value:r._q},rid);}
 function acHide(rid){setTimeout(()=>{const ac=document.getElementById('ac-'+rid);if(ac)ac.classList.remove('op');},200);}
 function acSelect(rid,pid){
   const row=rows.find(r=>r.id===rid);
